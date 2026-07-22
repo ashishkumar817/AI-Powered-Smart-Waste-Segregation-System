@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    overflow-x: hidden;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    /* Base background is light gray in light mode, primary-navy in dark mode */
+    @apply bg-slate-100 text-gray-900 dark:bg-primary-navy dark:text-white font-inter antialiased;
+  }
+
+  /* Apply smooth transitions to theme properties only globally */
+  *, ::before, ::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
+
+  /* Respect user's reduced-motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/95 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.1)];
+  }
+  
+  .glass-card {
+    @apply bg-white dark:bg-white/5 backdrop-blur-lg border border-gray-200 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-xl rounded-2xl;
+  }
+  
+  .glow {
+    @apply shadow-[0_0_15px_rgba(34,197,94,0.3)] dark:shadow-[0_0_15px_rgba(34,197,94,0.5)];
+  }
+  
+  .glow-text {
+    @apply drop-shadow-[0_0_10px_rgba(34,197,94,0.5)] dark:drop-shadow-[0_0_10px_rgba(34,197,94,0.8)];
+  }
+
+  /* Tilt perspective helper */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+}
+

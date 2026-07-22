@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+
+        body{
+            font-family:Arial;
+            background:#f4f4f4;
+            padding:40px;
+        }
+
+        .card{
+            max-width:600px;
+            margin:auto;
+            background:white;
+            border-radius:12px;
+            padding:40px;
+            text-align:center;
+            box-shadow:0 5px 20px rgba(0,0,0,.1);
+        }
+
+        h2{
+            color:#2E7D32;
+        }
+
+        .otp{
+            font-size:36px;
+            letter-spacing:10px;
+            font-weight:bold;
+            color:#1B5E20;
+            margin:30px 0;
+        }
+
+        .warning{
+            color:#D32F2F;
+            margin-top:25px;
+            font-size:14px;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>Password Reset</h2>
+
+<p>Hello {{ username }},</p>
+
+<p>Use the OTP below to reset your password.</p>
+
+<div class="otp">
+{{ otp }}
+</div>
+
+<p>This OTP will expire in <b>5 minutes</b>.</p>
+
+<p class="warning">
+Do not share this OTP with anyone.
+</p>
+
+</div>
+
+</body>
+
+</html>
