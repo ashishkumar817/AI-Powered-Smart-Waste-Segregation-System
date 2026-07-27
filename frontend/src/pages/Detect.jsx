@@ -281,7 +281,8 @@ const Detect = () => {
 
                   <EmailReportButton
                     predictions={result.predictions}
-                    processedImage={previewImage}
+                    originalImage={originalImage}
+                    processedImage={processedImage}
                     time={result.time}
                   />
 

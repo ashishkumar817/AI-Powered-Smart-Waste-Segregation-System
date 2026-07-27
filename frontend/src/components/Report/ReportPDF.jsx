@@ -7,6 +7,7 @@ const ReportPDF = async ({
   originalImage,
   processedImage,
   userName = "Guest User",
+  download = true,
 }) => {
 
   const doc = new jsPDF("p", "mm", "a4");
@@ -730,9 +731,11 @@ doc.text(
   }
 );
  
-  doc.save(
-    `SmartWaste_Report_${Date.now()}.pdf`
-  );
+  if (download) {
+  doc.save(`SmartWaste_Report_${Date.now()}.pdf`);
+  } else {
+  return doc.output("datauristring");
+  }
 };
 
 export default ReportPDF;

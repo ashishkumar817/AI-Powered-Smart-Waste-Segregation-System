@@ -31,8 +31,8 @@ const AnimatedNumber = ({ value, suffix = '' }) => {
 
 
 
-const STAT_COLORS = ['text-emerald-400', 'text-blue-400', 'text-violet-400', 'text-green-400'];
-const ICON_BG    = ['bg-emerald-400/10', 'bg-blue-400/10', 'bg-violet-400/10', 'bg-green-400/10'];
+const STAT_COLORS = ['text-[#1e40af]', 'text-[#2563eb]', 'text-[#3b82f6]', 'text-[#1e3a8a]'];
+const ICON_BG    = ['bg-[#1e40af]/10', 'bg-[#2563eb]/10', 'bg-[#3b82f6]/10', 'bg-[#1e3a8a]/10'];
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -174,7 +174,10 @@ const Dashboard = () => {
   const chartsInView = useInView(chartsRef, { once: true, margin: '-80px' });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+    <div className="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14 bg-[#f4f7fb] dark:bg-[#060c14] rounded-[2.5rem] lg:my-6 shadow-[0_8px_40px_rgb(0,0,0,0.03)] border border-white/60 dark:border-white/5 relative overflow-hidden">
+      {/* Decorative subtle top gradient to mimic the reference top bar background */}
+      <div className="absolute top-0 inset-x-0 h-40 bg-gradient-to-b from-[#e5edf5] to-transparent dark:from-[#0a1321] z-0 pointer-events-none" />
+      <div className="relative z-10">
       {/* Heading */}
       <motion.div
         className="mb-6"
@@ -195,7 +198,7 @@ const Dashboard = () => {
       {/* ── Stat cards — staggered fade-up ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
         {statCards.map((stat, i) => (
-          <GlassCard key={i} delay={i * 0.08} tilt={false} className="group relative overflow-hidden h-full flex flex-col justify-between">
+          <GlassCard key={i} delay={i * 0.08} tilt={false} className="group relative overflow-hidden h-full flex flex-col justify-between bg-white/90 dark:bg-[#0f1929]/90 backdrop-blur-xl border border-white/80 dark:border-white/5 shadow-[0_10px_40px_rgb(0,0,0,0.03)] rounded-[2rem]">
             <div className="relative z-10 h-full flex flex-col justify-between">
               <div className="flex justify-between items-start mb-4">
                 <div className="text-gray-500 dark:text-gray-400 font-semibold text-sm tracking-wide">{stat.title}</div>
@@ -224,15 +227,15 @@ const Dashboard = () => {
       >
         {/* Weekly Scans Line Chart — spans 2 of 3 columns */}
         <div className="lg:col-span-2">
-          <GlassCard delay={0.1} tilt={false}>
+          <GlassCard delay={0.1} tilt={false} className="bg-white/90 dark:bg-[#0f1929]/90 backdrop-blur-xl border border-white/80 dark:border-white/5 shadow-[0_10px_40px_rgb(0,0,0,0.03)] rounded-[2rem] h-full flex flex-col">
             <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-white">Detection Volume Over Time</h3>
             <div className="h-[220px] lg:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={stats.weeklyData}>
                   <defs>
                     <linearGradient id="colorScans" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22C55E" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#22C55E" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={activeTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} vertical={false} />
@@ -246,21 +249,21 @@ const Dashboard = () => {
                       color: activeTheme === 'dark' ? '#ffffff' : '#000000',
                       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
                     }}
-                    itemStyle={{ color: '#22C55E', fontWeight: 'bold' }}
+                    itemStyle={{ color: '#2563eb', fontWeight: 'bold' }}
                     cursor={{ stroke: activeTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', strokeWidth: 2 }}
                   />
                   <Area
                     type="monotone"
                     dataKey="scans"
-                    stroke="#22C55E"
+                    stroke="#2563eb"
                     fillOpacity={1}
                     fill="url(#colorScans)"
-                    strokeWidth={3}
+                    strokeWidth={4}
                     isAnimationActive={true}
                     animationDuration={1500}
                     animationEasing="ease-out"
-                    dot={{ r: 4, fill: activeTheme === 'dark' ? '#081420' : '#ffffff', stroke: '#22C55E', strokeWidth: 2 }}
-                    activeDot={{ r: 6, fill: '#22C55E', stroke: activeTheme === 'dark' ? '#081420' : '#ffffff', strokeWidth: 2 }}
+                    dot={{ r: 4, fill: activeTheme === 'dark' ? '#081420' : '#ffffff', stroke: '#2563eb', strokeWidth: 2 }}
+                    activeDot={{ r: 7, fill: '#2563eb', stroke: activeTheme === 'dark' ? '#081420' : '#ffffff', strokeWidth: 3 }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -270,7 +273,7 @@ const Dashboard = () => {
 
         {/* Category Distribution Pie Chart — spans 1 column */}
         <div className="lg:col-span-1">
-          <GlassCard delay={0.18} tilt={false}>
+          <GlassCard delay={0.18} tilt={false} className="bg-white/90 dark:bg-[#0f1929]/90 backdrop-blur-xl border border-white/80 dark:border-white/5 shadow-[0_10px_40px_rgb(0,0,0,0.03)] rounded-[2rem] h-full flex flex-col">
             <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-white">Waste Distribution</h3>
             <div className="h-[220px] lg:h-[300px] flex items-center justify-center">
               {stats.categoryData.length > 0 ? (
@@ -308,7 +311,7 @@ const Dashboard = () => {
           </GlassCard>
         </div>
       </motion.div>
-
+      </div>
     </div>
   );
 };

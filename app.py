@@ -15,6 +15,7 @@ from config import Config
 from services.email_service import mail, send_email
 from datetime import datetime, timedelta
 from services.otp_service import generate_otp
+from flask_mail import Message
 
 
 
@@ -227,7 +228,7 @@ def login():
         access_token = create_access_token(identity=identity_str)
         return jsonify({
             "access_token": access_token, 
-            "user": {"id": user.id, "username": user.username, "role": user.role}
+            "user": {"id": user.id, "username": user.username, "email": user.email, "role": user.role}
         }), 200
 
     return jsonify({"error": "Invalid username or password"}), 401
@@ -427,6 +428,60 @@ def contact():
         return jsonify({
             "error": "Unable to send message."
         }), 500
+
+@app.route("/api/email-report", methods=["POST"])
+@jwt_required()
+def email_report():
+    try:
+        current_user = json.loads(get_jwt_identity())
+
+        user = User.query.get(current_user["id"])
+
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        data = request.get_json()
+
+        pdf_data = data.get("pdf")
+
+        if not pdf_data:
+            return jsonify({"error": "PDF missing"}), 400
+
+        pdf_base64 = pdf_data.split(",")[1]
+
+        pdf_bytes = base64.b64decode(pdf_base64)
+
+        msg = Message(
+            subject="Smart Waste AI Detection Report",
+            recipients=[user.email]
+        )
+
+        msg.body = f"""
+Hello {user.username},
+
+Your Smart Waste AI detection report is attached.
+
+Thank you for using Smart Waste AI.
+"""
+
+        msg.attach(
+            "SmartWaste_Report.pdf",
+            "application/pdf",
+            pdf_bytes
+        )
+
+        print("Sending email to:", user.email)
+        print("Subject:", msg.subject)
+        print("Attachment size:", len(pdf_bytes))
+        mail.send(msg)
+        print("Email sent successfully!")
+        print("Recipient email:", user.email)
+
+        return jsonify({"message": "Report emailed successfully."}), 200
+
+    except Exception as e:
+        print("EMAIL REPORT ERROR:", e)
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/history', methods=['GET'])
