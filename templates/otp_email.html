@@ -1,68 +1,29 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <style>
-
-        body{
-            font-family:Arial;
-            background:#f4f4f4;
-            padding:40px;
-        }
-
-        .card{
-            max-width:600px;
-            margin:auto;
-            background:white;
-            border-radius:12px;
-            padding:40px;
-            text-align:center;
-            box-shadow:0 5px 20px rgba(0,0,0,.1);
-        }
-
-        h2{
-            color:#2E7D32;
-        }
-
-        .otp{
-            font-size:36px;
-            letter-spacing:10px;
-            font-weight:bold;
-            color:#1B5E20;
-            margin:30px 0;
-        }
-
-        .warning{
-            color:#D32F2F;
-            margin-top:25px;
-            font-size:14px;
-        }
-
-    </style>
+<meta charset="UTF-8">
 </head>
-
-<body>
-
-<div class="card">
-
-<h2>Password Reset</h2>
-
-<p>Hello {{ username }},</p>
-
-<p>Use the OTP below to reset your password.</p>
-
-<div class="otp">
+<body style="margin:0;padding:30px;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,.05);">
+<tr><td style="background:#3b82f6;padding:40px;text-align:center;color:white;">
+<h1 style="margin:0;font-size:28px;font-weight:700;">Password Reset Request 🔒</h1>
+</td></tr>
+<tr><td style="padding:40px;color:#334155;font-size:16px;line-height:1.6;text-align:center;">
+<p style="margin-top:0;">Hello <strong>{{ username }}</strong>,</p>
+<p>We received a request to reset your password. Use the verification code below to complete the process.</p>
+<div style="background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:8px;padding:20px;margin:30px 0;font-size:36px;font-weight:bold;letter-spacing:8px;color:#0f172a;">
 {{ otp }}
 </div>
-
-<p>This OTP will expire in <b>5 minutes</b>.</p>
-
-<p class="warning">
-Do not share this OTP with anyone.
-</p>
-
-</div>
-
+<p style="color:#64748b;font-size:14px;">This code will expire in <strong>5 minutes</strong>.</p>
+<p style="color:#ef4444;font-size:14px;margin-bottom:0;">If you didn't request this, please safely ignore this email.</p>
+</td></tr>
+<tr><td style="background:#f1f5f9;padding:24px;text-align:center;font-size:14px;color:#64748b;">
+<strong>Smart Waste AI Security</strong>
+</td></tr>
+</table>
+</td></tr>
+</table>
 </body>
-
 </html>

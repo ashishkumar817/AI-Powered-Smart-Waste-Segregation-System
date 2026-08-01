@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 const Button = ({ children, variant = 'primary', className = '', ...props }) => {
-  const baseClasses = "px-6 py-3 rounded-full font-medium transition-all duration-300 flex items-center justify-center gap-2";
+  const baseClasses = "px-6 py-3 rounded-full font-medium transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap";
   
   const variants = {
     primary: "bg-primary-green hover:bg-emerald-500 text-white glow hover:shadow-[0_0_25px_rgba(34,197,94,0.7)]",

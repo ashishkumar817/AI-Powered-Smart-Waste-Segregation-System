@@ -5,7 +5,9 @@ import {
 } from 'recharts';
 import { Activity, Target, Trash2, TrendingUp, Search, Bell, User as UserIcon, ChevronDown, Clock, CheckCircle } from 'lucide-react';
 import { motion, useInView, useSpring, useTransform, animate } from 'framer-motion';
+import { useLocation, useNavigate } from 'react-router-dom';
 import GlassCard from '../components/GlassCard';
+import toast from 'react-hot-toast';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -45,6 +47,31 @@ const Dashboard = () => {
 
   const { token, user } = useContext(AuthContext);
   const { activeTheme } = useTheme();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (sessionStorage.getItem('showWelcome') === 'true' && user?.username) {
+      const isAdmin = user.role === 'admin';
+      toast.success(
+        isAdmin 
+          ? `Hello ${user.username}, welcome to the Global Admin Dashboard!` 
+          : `Hello ${user.username}, welcome to your Smart Waste AI dashboard!`,
+        {
+          icon: isAdmin ? '🛡️' : '👋',
+          style: {
+            borderRadius: '16px',
+            background: 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: 'blur(12px)',
+            color: '#1f2937',
+            padding: '16px 24px',
+            boxShadow: '0 10px 40px -10px rgba(0,0,0,0.1)',
+          }
+        }
+      );
+      sessionStorage.removeItem('showWelcome');
+    }
+  }, [user]);
 
   useEffect(() => {
     if (token) loadData();
@@ -84,14 +111,17 @@ const Dashboard = () => {
     data.forEach(item => {
       if (item.rawPredictions) {
         item.rawPredictions.forEach(pred => {
-          catMap[pred.category] = (catMap[pred.category] || 0) + 1;
+          let category = pred.category;
+          category = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+          catMap[category] = (catMap[category] || 0) + 1;
         });
       } else {
         const parts = item.type.split(',');
         parts.forEach(part => {
           const match = part.match(/([a-zA-Z]+)(?:\s*\(x(\d+)\))?/);
           if (match) {
-            const category = match[1].trim();
+            let category = match[1].trim();
+            category = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
             const count = match[2] ? parseInt(match[2]) : 1;
             catMap[category] = (catMap[category] || 0) + count;
           }

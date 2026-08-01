@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useContext } from 'react';
+import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import ParticleBackground from './components/ParticleBackground';
@@ -13,6 +14,7 @@ import About from './pages/About';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Admin from './pages/Admin';
+import Profile from './pages/Profile';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ForgotPassword from "./pages/ForgotPassword";
@@ -20,7 +22,7 @@ import VerifyOTP from "./pages/VerifyOTP";
 import ResetPassword from "./pages/ResetPassword";
 
 // Routes where sidebar is shown (authenticated app routes)
-const SIDEBAR_ROUTES = ['/dashboard', '/detect', '/history', '/locations', '/about', '/admin'];
+const SIDEBAR_ROUTES = ['/dashboard', '/detect', '/history', '/locations', '/about', '/admin', '/profile'];
 
 const AppLayout = () => {
   const { user } = useContext(AuthContext);
@@ -59,6 +61,7 @@ const AppLayout = () => {
                 <Route path="/locations" element={<Locations />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               </Routes>
             </main>
             <Footer />
@@ -91,6 +94,7 @@ const AppLayout = () => {
               <Route path="/locations" element={<Locations />} />
               <Route path="/about" element={<About />} />
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             </Routes>
           </main>
           <Footer />
@@ -105,6 +109,13 @@ function App() {
     <AuthProvider>
       <Router>
         <AppLayout />
+        <Toaster 
+          position="top-right" 
+          toastOptions={{
+            className: 'dark:bg-[#1a2942] dark:text-white',
+            duration: 4000,
+          }} 
+        />
       </Router>
     </AuthProvider>
   );

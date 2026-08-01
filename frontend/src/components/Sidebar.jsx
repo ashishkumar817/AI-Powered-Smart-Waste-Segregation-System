@@ -3,14 +3,16 @@ import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Recycle, LayoutDashboard, History, MapPin, Info,
-  LogOut, User, Camera, Shield, ChevronLeft, ChevronRight, Menu
+  LogOut, User, Camera, Shield, ChevronLeft, ChevronRight, Menu, ArrowLeft, UserCog
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import ThemeToggle from './ThemeToggle';
+import ActionModal from './ActionModal';
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -19,11 +21,16 @@ const Sidebar = () => {
     { name: 'Detect', path: '/detect', icon: <Camera size={20} /> },
     { name: 'History', path: '/history', icon: <History size={20} /> },
     { name: 'Locations', path: '/locations', icon: <MapPin size={20} /> },
+    { name: 'Profile', path: '/profile', icon: <UserCog size={20} /> },
     { name: 'About', path: '/about', icon: <Info size={20} /> },
     ...(user?.role === 'admin' ? [{ name: 'Admin', path: '/admin', icon: <Shield size={20} /> }] : []),
   ];
 
   const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
     logout();
     navigate('/');
   };
@@ -82,7 +89,7 @@ const Sidebar = () => {
                 {isActive && (
                   <motion.div
                     layoutId="sidebar-active"
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-green rounded-r-full"
+                    className="absolute left-0 top-[calc(50%-12px)] w-1 h-6 bg-primary-green rounded-r-full"
                   />
                 )}
                 <span className="flex-shrink-0">{item.icon}</span>
@@ -130,6 +137,27 @@ const Sidebar = () => {
             )}
           </AnimatePresence>
         </div>
+
+        <Link
+          to="/"
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all text-sm font-medium ${collapsed ? 'justify-center' : ''}`}
+          title="Back to Website"
+        >
+          <ArrowLeft size={18} className="flex-shrink-0" />
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.span
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.18 }}
+                className="whitespace-nowrap overflow-hidden"
+              >
+                Back to Website
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </Link>
 
         <button
           onClick={handleLogout}
@@ -216,6 +244,16 @@ const Sidebar = () => {
           </>
         )}
       </AnimatePresence>
+
+      <ActionModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={confirmLogout}
+        title="Confirm Logout"
+        message="Are you sure you want to log out of your account?"
+        type="danger"
+        confirmText="Log Out"
+      />
     </>
   );
 };

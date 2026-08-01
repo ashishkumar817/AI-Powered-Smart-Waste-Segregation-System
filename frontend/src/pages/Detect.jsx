@@ -1,11 +1,23 @@
 import React, { useState, useRef, useContext } from 'react';
-import { Camera, Upload, RefreshCw, Info, AlertTriangle, Zap, Database } from 'lucide-react';
+import { Camera, Upload, RefreshCw, Info, AlertTriangle, Zap, Database, Video, Clock, Crosshair, Box, Layers, Gauge, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Button from '../components/Button';
 import GlassCard from '../components/GlassCard';
 import { AuthContext } from '../context/AuthContext';
 import DownloadReportButton from "../components/Report/DownloadReportButton";
 import EmailReportButton from "../components/Report/EmailReportButton";
+import ActionModal from '../components/ActionModal';
+
+const WASTE_COLORS = {
+  "PLASTIC": "bg-pink-500",
+  "GLASS": "bg-blue-400",
+  "METAL": "bg-gray-400",
+  "CARDBOARD": "bg-yellow-600",
+  "PAPER": "bg-green-500",
+  "TRASH": "bg-red-500",
+  "E-WASTE": "bg-purple-500"
+};
+const getWasteColor = (cls) => WASTE_COLORS[cls?.toUpperCase()] || "bg-primary-green";
 
 const Detect = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -13,12 +25,15 @@ const Detect = () => {
   const [errorMsg, setErrorMsg] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+  const [previewVideo, setPreviewVideo] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [originalImage, setOriginalImage] = useState(null);
   const [processedImage, setProcessedImage] = useState(null);
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
   const { token, user } = useContext(AuthContext);
+  const videoInputRef = useRef(null);
+  const [modalConfig, setModalConfig] = useState({ isOpen: false });
 
   const startCamera = async () => {
     try {
@@ -30,9 +45,16 @@ const Detect = () => {
       setErrorMsg(null);
       setResult(null);
       setPreviewImage(null);
+      setPreviewVideo(null);
     } catch (err) {
       console.error('Error accessing camera:', err);
-      alert('Could not access camera. Please check permissions.');
+      setModalConfig({
+        isOpen: true,
+        type: 'alert',
+        title: 'Camera Error',
+        message: 'Could not access camera. Please check permissions.',
+        confirmText: 'OK'
+      });
     }
   };
 
@@ -64,6 +86,8 @@ const Detect = () => {
     if (!file || !file.type.startsWith('image/')) return;
     if (cameraActive) stopCamera();
 
+    setPreviewVideo(null);
+
     const reader = new FileReader();
     reader.onload = (e) => {
       setPreviewImage(e.target.result);
@@ -77,6 +101,63 @@ const Detect = () => {
   };
 
   const handleFileUpload = (e) => processFile(e.target.files[0]);
+  const handleVideoUpload = async (e) => {
+  const file = e.target.files[0];
+
+  if (!file) return;
+
+  // Stop webcam if active
+  if (cameraActive) stopCamera();
+
+  setErrorMsg(null);
+  setResult(null);
+
+  // Optional preview
+  const videoURL = URL.createObjectURL(file);
+  console.log("Selected Video:", videoURL);
+
+  setPreviewImage(null);
+  setPreviewVideo(videoURL);
+
+  const formData = new FormData();
+  formData.append("video", file);
+
+  try {
+    setIsProcessing(true);
+
+    const headers = {};
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(
+      "http://127.0.0.1:5000/api/detect-video",
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Video detection failed");
+    }
+
+    setResult(data);
+    if (data.video) {
+      setPreviewVideo(data.video);
+    }
+
+  } catch (err) {
+    console.error(err);
+    setErrorMsg(err.message);
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
@@ -120,6 +201,7 @@ const Detect = () => {
   const clearSession = () => {
     setResult(null);
     setPreviewImage(null);
+    setPreviewVideo(null);
     setErrorMsg(null);
   };
 
@@ -165,8 +247,21 @@ const Detect = () => {
                 />
               )}
 
+              {/* Uploaded video preview */}
+              {!cameraActive && previewVideo && (
+                <video
+                  key={previewVideo}
+                  src={previewVideo}
+                  autoPlay
+                  controls
+                  loop
+                  muted
+                  className="absolute inset-0 w-full h-full object-contain bg-gray-100 dark:bg-black/50"
+                />
+              )}
+
               {/* Empty state */}
-              {!cameraActive && !previewImage && (
+              {!cameraActive && !previewImage && !previewVideo && (
                 <div className="text-gray-500 flex flex-col items-center p-8 text-center pointer-events-none select-none">
                   <Camera size={64} className="mb-4 opacity-40 text-gray-500" />
                   <p className="text-lg font-medium text-gray-700 dark:text-gray-400 mb-1">Drag & drop an image here</p>
@@ -211,6 +306,7 @@ const Detect = () => {
                 <Button onClick={startCamera} variant="primary" className="w-full sm:w-auto">
                   <Camera size={18} /> Open Camera
                 </Button>
+                
               )}
 
               <input
@@ -220,9 +316,23 @@ const Detect = () => {
                 onChange={handleFileUpload}
                 className="hidden"
               />
+              <input
+                type="file"
+                accept="video/*"
+                ref={videoInputRef}
+                onChange={handleVideoUpload}
+                className="hidden"
+            />
               <Button variant="secondary" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto">
                 <Upload size={18} /> Upload Image
               </Button>
+              <Button
+                variant="secondary"
+                onClick={() => videoInputRef.current?.click()}
+                className="w-full sm:w-auto flex items-center justify-center gap-2"
+            >
+                <Video size={18} /> Upload Video
+            </Button>
             </div>
           </GlassCard>
         </div>
@@ -243,7 +353,7 @@ const Detect = () => {
               >
                 {/* Prediction cards */}
                 <div className="flex-1 overflow-y-auto space-y-3 pr-2 max-h-[450px]">
-                  {result.predictions.map((pred, idx) => (
+                  {result?.predictions?.map((pred, idx) => (
                     <div key={idx} className={`p-4 rounded-xl border ${pred.borderColor} bg-gray-50 dark:bg-white/5`}>
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -265,26 +375,129 @@ const Detect = () => {
                 </div>
 
                 {/* Footer */}
-                <div className="pt-4 border-t border-gray-200 dark:border-white/10 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mt-4">
-                  <span>Detected {result.predictions.length} item{result.predictions.length !== 1 ? 's' : ''}</span>
-                  <span className="flex items-center gap-1"><RefreshCw size={12} /> {result.time}</span>
+                <div className="pt-4 border-t border-gray-200 dark:border-white/10 mt-4">
+
+                  {result.predictions ? (
+
+                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+
+                      <span>
+                        Detected {result.predictions.length} item
+                        {result.predictions.length !== 1 ? "s" : ""}
+                      </span>
+
+                      <span className="flex items-center gap-1">
+                        <RefreshCw size={12}/>
+                        {result.time}
+                      </span>
+
+                    </div>
+
+                  ) : (
+
+                    <div className="space-y-6">
+                      {/* Primary Waste Highlight */}
+                      <div className="bg-gradient-to-br from-primary-green/20 to-transparent border border-primary-green/30 p-4 rounded-xl flex items-center justify-between mb-4">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">
+                            Primary Waste Detected
+                          </span>
+                          <span className="text-3xl font-black text-primary-green uppercase tracking-wide drop-shadow-sm">
+                            {result.primary || "NONE"}
+                          </span>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-primary-green/20 flex items-center justify-center border border-primary-green/20 shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                           <Activity size={24} className="text-primary-green" />
+                        </div>
+                      </div>
+
+                      {/* Stats Grid */}
+                      {result.stats && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-1">
+                              <Crosshair size={14}/> Avg Confidence
+                            </div>
+                            <div className="font-semibold text-lg">{(result.stats.avg_confidence * 100).toFixed(1)}%</div>
+                          </div>
+                          
+                          <div className="bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-1">
+                              <Box size={14}/> Unique Objects
+                            </div>
+                            <div className="font-semibold text-lg">{result.stats.unique_objects}</div>
+                          </div>
+
+                          <div className="bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-1">
+                              <Clock size={14}/> Processing Time
+                            </div>
+                            <div className="font-semibold text-lg">{result.stats.total_processing_time_sec}s</div>
+                          </div>
+                          
+                          <div className="bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-1">
+                              <Gauge size={14}/> Average FPS
+                            </div>
+                            <div className="font-semibold text-lg">{result.stats.effective_fps} fps</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Class Breakdown Progress Bars */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                          <Layers size={16} /> Class Breakdown
+                        </h4>
+                        <div className="space-y-3">
+                          {Object.entries(result.summary || {}).map(([cls, count]) => {
+                            const total = result.stats?.unique_objects || 1;
+                            const percentage = Math.round((count / total) * 100);
+                            const colorClass = getWasteColor(cls);
+                            
+                            return (
+                              <div key={cls} className="space-y-1">
+                                <div className="flex justify-between text-xs font-medium">
+                                  <span>{cls}</span>
+                                  <span className="text-gray-500">{count} item{count !== 1 ? 's' : ''} ({percentage}%)</span>
+                                </div>
+                                <div className="w-full bg-gray-200 dark:bg-white/10 rounded-full h-2">
+                                  <div
+                                    className={`${colorClass} h-2 rounded-full transition-all duration-1000 ease-out`}
+                                    style={{ width: `${percentage}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                    </div>
+
+                  )}
+
                 </div>
 
                 <div className="mt-4 space-y-3">
 
-                  <DownloadReportButton
-                    predictions={result.predictions}
-                    originalImage={originalImage}
-                    processedImage={processedImage}
-                    userName={user?.username}
-                />
+                  {result.predictions && (
+                    <>
+                      <DownloadReportButton
+                        predictions={result.predictions}
+                        originalImage={originalImage}
+                        processedImage={processedImage}
+                        userName={user?.username}
+                      />
 
-                  <EmailReportButton
-                    predictions={result.predictions}
-                    originalImage={originalImage}
-                    processedImage={processedImage}
-                    time={result.time}
-                  />
+                      <EmailReportButton
+                        predictions={result.predictions}
+                        originalImage={originalImage}
+                        processedImage={processedImage}
+                        time={result.time}
+                      />
+                    </>
+                  )}
 
                   <Button
                     className="w-full"
@@ -294,7 +507,7 @@ const Detect = () => {
                     Clear Results
                   </Button>
 
-</div>
+                </div>
               </motion.div>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-500 space-y-4 py-8">
@@ -308,6 +521,11 @@ const Detect = () => {
         </div>
 
       </div>
+
+      <ActionModal 
+        {...modalConfig}
+        onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+      />
     </div>
   );
 };

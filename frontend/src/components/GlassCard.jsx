@@ -54,8 +54,8 @@ const GlassCard = ({ children, className = '', delay = 0, tilt = true, fullHeigh
         onMouseLeave={handleMouseLeave}
         className={`glass-card p-6 relative overflow-hidden cursor-default ${hFull}
           transition-colors duration-300
-          hover:border-green-500/40
-          hover:shadow-[0_0_45px_rgba(34,197,94,0.18),0_24px_64px_rgba(0,0,0,0.45)]
+          hover:border-blue-500/40
+          hover:shadow-[0_0_45px_rgba(59,130,246,0.18),0_24px_64px_rgba(0,0,0,0.45)]
           ${className}`}
         {...props}
       >
@@ -76,7 +76,7 @@ const GlassCard = ({ children, className = '', delay = 0, tilt = true, fullHeigh
           transition={{ duration: 0.3 }}
           style={{
             background:
-              'linear-gradient(135deg, rgba(34,197,94,0.12) 0%, transparent 55%, rgba(34,197,94,0.06) 100%)',
+              'linear-gradient(135deg, rgba(59,130,246,0.12) 0%, transparent 55%, rgba(59,130,246,0.06) 100%)',
           }}
         />
 

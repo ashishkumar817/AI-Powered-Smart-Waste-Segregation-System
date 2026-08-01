@@ -3,7 +3,8 @@ import { Shield, Trash, User, Search, Filter, Edit2, Eye, X, AlertTriangle, Chec
 import { motion, AnimatePresence } from 'framer-motion';
 import GlassCard from '../components/GlassCard';
 import { AuthContext } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const getStatusColor = (conf) => {
   if (conf >= 95) return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
@@ -16,6 +17,24 @@ const Admin = () => {
   const [historyData, setHistoryData] = useState([]);
   const { token, user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (sessionStorage.getItem('showWelcome') === 'true' && user?.username) {
+      toast.success(`Hello ${user.username}, welcome to the Smart Waste AI admin panel!`, {
+        icon: '🛡️',
+        style: {
+          borderRadius: '16px',
+          background: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(12px)',
+          color: '#1f2937',
+          padding: '16px 24px',
+          boxShadow: '0 10px 40px -10px rgba(0,0,0,0.1)',
+        }
+      });
+      sessionStorage.removeItem('showWelcome');
+    }
+  }, [user]);
 
   // --- User Directory State ---
   const [searchQuery, setSearchQuery] = useState('');

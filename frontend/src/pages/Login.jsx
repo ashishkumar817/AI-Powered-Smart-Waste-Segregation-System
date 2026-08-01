@@ -38,8 +38,9 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
-      login(data.user, data.access_token, rememberMe);
-      navigate('/dashboard');
+        login(data.user, data.access_token, rememberMe);
+        sessionStorage.setItem('showWelcome', 'true');
+        navigate('/dashboard');
       } else {
         setError(data.error || "Login failed");
       }
@@ -170,8 +171,7 @@ const Login = () => {
 
       {/* Right Column: Hero Image */}
       <div className="hidden lg:block lg:w-1/2 h-full relative border-l border-gray-200 dark:border-white/5 bg-gray-100 dark:bg-[#081420]">
-        {/* Gradient Overlay just for bottom text contrast */}
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none" />
+        {/* Gradient Overlay removed per request */}
         
         <motion.div 
           className="absolute inset-0 overflow-hidden"
@@ -186,11 +186,11 @@ const Login = () => {
         </motion.div>
 
         {/* Motivational Text Overlay */}
-        <div className="absolute bottom-12 left-0 right-0 z-20 text-center px-8">
-          <blockquote className="text-2xl font-semibold text-white drop-shadow-lg tracking-tight">
+        <div className="absolute bottom-12 left-12 right-12 z-20 text-center p-8 rounded-3xl bg-black/30 backdrop-blur-md border border-white/20 shadow-2xl">
+          <blockquote className="text-2xl font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] tracking-tight">
             "Welcome Back! The journey continues."
           </blockquote>
-          <p className="mt-4 text-sm text-gray-300 font-medium tracking-wide uppercase">
+          <p className="mt-4 text-sm text-white/90 font-bold tracking-wide uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
             — Smart Waste AI
           </p>
         </div>

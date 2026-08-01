@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, useSpring, useTransform, useMotionValue, useMotionTemplate, animate, useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Camera, Zap, ShieldCheck, Database, Info, Cpu, Scan, Layers, Recycle, Target, Mail, Phone, MapPin, Send, CheckCircle2, Loader2, User } from 'lucide-react';
-import { FaGithub, FaTwitter, FaLinkedin } from 'react-icons/fa';
+import { FaGithub, FaLinkedin, FaInstagram, FaEnvelope } from 'react-icons/fa';
 import logo from '../assets/logo.png';
 import aboutImg from '../assets/about us.png';
 import heroBg from '../assets/hero-bg.png';
@@ -21,6 +21,7 @@ import organicImgLight from '../assets/organic_3d.png';
 import Button from '../components/Button';
 import GlassCard from '../components/GlassCard';
 import About from './About';
+import ActionModal from '../components/ActionModal';
 import axios from "axios";
 
 const categoryData = [
@@ -184,14 +185,15 @@ const HeroTiltCard = ({ children }) => {
 };
 
 const Home = () => {
-  const [formStatus, setFormStatus] = useState('idle');
   const [contactData, setContactData] = useState({
     name: "",
     email: "",
     phone: "",
     subject: "",
-    message: ""
-});
+    message: "",
+  });
+  const [formStatus, setFormStatus] = useState("idle");
+  const [modalConfig, setModalConfig] = useState({ isOpen: false });
 
   const handleContactSubmit = async (e) => {
     e.preventDefault();
@@ -225,10 +227,13 @@ const Home = () => {
 
         console.error(err);
 
-        alert(
-            err.response?.data?.error ||
-            "Unable to send message."
-        );
+        setModalConfig({
+            isOpen: true,
+            type: 'danger',
+            title: 'Error',
+            message: err.response?.data?.error || "Unable to send message.",
+            confirmText: 'OK'
+        });
 
         setFormStatus("idle");
     }
@@ -711,8 +716,8 @@ const Home = () => {
             >
               {[
                 { icon: <Mail size={24} />, title: 'Email Us', desc: 'support@smartwaste.ai', action: 'mailto:support@smartwaste.ai' },
-                { icon: <Phone size={24} />, title: 'Call Us', desc: '+1 (555) 019-2834', action: 'tel:+15550192834' },
-                { icon: <MapPin size={24} />, title: 'Visit Us', desc: 'Innovation Park, Tech City, SF', action: '#' }
+                { icon: <Phone size={24} />, title: 'Call Us', desc: '+91 9108 291 462', action: 'tel:+91 9108 291 462' },
+                { icon: <MapPin size={24} />, title: 'Visit Us', desc: 'Kaup, Udupi - 574106, Karnataka, India', action: '#' }
               ].map((item, i) => (
                 <a href={item.action} onClick={item.action === '#' ? (e) => e.preventDefault() : undefined} key={i} className="group flex items-start gap-4 sm:gap-5 p-6 sm:p-5 rounded-2xl bg-gray-50 dark:bg-[#0a1321] border border-gray-200 dark:border-white/5 hover:border-green-500/30 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(34,197,94,0.08)]">
                   <div className="w-12 h-12 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-700 dark:text-gray-300 group-hover:text-green-500 group-hover:scale-110 transition-all duration-300 shadow-sm">
@@ -726,11 +731,18 @@ const Home = () => {
               ))}
               
               <div className="flex gap-4 pt-4 px-2">
-                {[FaGithub, FaTwitter, FaLinkedin].map((Icon, i) => (
-                  <a href="#" onClick={(e) => e.preventDefault()} key={i} className="w-10 h-10 rounded-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-green-500 hover:text-white hover:border-green-500 transition-all duration-300 hover:scale-110 hover:-translate-y-1">
-                    <Icon size={18} />
-                  </a>
-                ))}
+                <a href="https://github.com/ashishkumar817" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-green-500 hover:text-white hover:border-green-500 transition-all duration-300 hover:scale-110 hover:-translate-y-1">
+                  <FaGithub size={18} />
+                </a>
+                <a href="https://www.linkedin.com/in/ashishkumar21-" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-green-500 hover:text-white hover:border-green-500 transition-all duration-300 hover:scale-110 hover:-translate-y-1">
+                  <FaLinkedin size={18} />
+                </a>
+                <a href="https://www.instagram.com/_ash_kumar_21_/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-green-500 hover:text-white hover:border-green-500 transition-all duration-300 hover:scale-110 hover:-translate-y-1">
+                  <FaInstagram size={18} />
+                </a>
+                <a href="mailto:ashishkumarkaup@gmail.com" className="w-10 h-10 rounded-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:bg-green-500 hover:text-white hover:border-green-500 transition-all duration-300 hover:scale-110 hover:-translate-y-1">
+                  <FaEnvelope size={18} />
+                </a>
               </div>
             </motion.div>
 
@@ -891,6 +903,11 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      <ActionModal 
+        {...modalConfig}
+        onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+      />
     </div>
   );
 };

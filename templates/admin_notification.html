@@ -1,31 +1,34 @@
 <!DOCTYPE html>
-
 <html>
-
-<body>
-
-<h2>New User Registration</h2>
-
-<p>
-
-Username:
-<b>{{ username }}</b>
-
-</p>
-
-<p>
-
-Email:
-<b>{{ email }}</b>
-
-</p>
-
-<p>
-
-A new user has registered successfully.
-
-</p>
-
+<head>
+<meta charset="UTF-8">
+</head>
+<body style="margin:0;padding:30px;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,.05);">
+<tr><td style="background:#8b5cf6;padding:40px;text-align:center;color:white;">
+<h1 style="margin:0;font-size:28px;font-weight:700;">New User Registration 🎉</h1>
+</td></tr>
+<tr><td style="padding:40px;color:#334155;font-size:16px;line-height:1.6;">
+<p style="margin-top:0;">Hello Admin,</p>
+<p>A new user has just joined the Smart Waste AI platform.</p>
+<table width="100%" cellpadding="15" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;margin:25px 0;">
+<tr style="background:#f8fafc;">
+<td width="120" style="font-weight:bold;color:#475569;border-bottom:1px solid #e2e8f0;">Username</td>
+<td style="border-bottom:1px solid #e2e8f0;">{{ username }}</td>
+</tr>
+<tr>
+<td style="font-weight:bold;color:#475569;">Email</td>
+<td>{{ email }}</td>
+</tr>
+</table>
+</td></tr>
+<tr><td style="background:#f1f5f9;padding:24px;text-align:center;font-size:14px;color:#64748b;">
+<strong>Smart Waste AI Admin System</strong>
+</td></tr>
+</table>
+</td></tr>
+</table>
 </body>
-
 </html>

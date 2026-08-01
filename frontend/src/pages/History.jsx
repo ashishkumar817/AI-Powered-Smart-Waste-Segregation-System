@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { Search, Filter, Download, Trash, User } from 'lucide-react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
+import { Search, Filter, Download, Trash, User, X, Calendar, Settings2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import GlassCard from '../components/GlassCard';
 import Button from '../components/Button';
+import ActionModal from '../components/ActionModal';
 import { AuthContext } from '../context/AuthContext';
 
 const getStatusColor = (conf) => {
@@ -19,6 +21,18 @@ const History = () => {
   const ITEMS_PER_PAGE = 10;
   const [currentPage, setCurrentPage] = useState(1);
   // ------------------
+
+  // --- Export Modal State ---
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [modalConfig, setModalConfig] = useState({ isOpen: false });
+  const [exportFilters, setExportFilters] = useState({
+    startDate: '',
+    endDate: '',
+    wasteType: 'All',
+    user: 'All',
+    minConfidence: 0
+  });
+  // --------------------------
 
   useEffect(() => {
     if (token) {
@@ -42,40 +56,54 @@ const History = () => {
     }
   };
 
-  const clearHistory = async () => {
-    if(window.confirm("Are you sure you want to clear your entire history? This cannot be undone.")) {
-      try {
-        const response = await fetch('http://localhost:5000/api/history', {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
+  const clearHistory = () => {
+    setModalConfig({
+      isOpen: true,
+      type: 'danger',
+      title: 'Clear History',
+      message: 'Are you sure you want to clear your entire history? This cannot be undone.',
+      confirmText: 'Delete All',
+      onConfirm: async () => {
+        try {
+          const response = await fetch('http://localhost:5000/api/history', {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (response.ok) {
+            loadHistory();
           }
-        });
-        if (response.ok) {
-          loadHistory();
+        } catch (err) {
+          console.error("Failed to clear history", err);
         }
-      } catch (err) {
-        console.error("Failed to clear history", err);
       }
-    }
+    });
   };
 
-  const deleteItem = async (id) => {
-    if(window.confirm("Delete this entry?")) {
-      try {
-        const response = await fetch(`http://localhost:5000/api/history/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
+  const deleteItem = (id) => {
+    setModalConfig({
+      isOpen: true,
+      type: 'danger',
+      title: 'Delete Entry',
+      message: 'Are you sure you want to delete this entry?',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`http://localhost:5000/api/history/${id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (response.ok) {
+            loadHistory();
           }
-        });
-        if (response.ok) {
-          loadHistory();
+        } catch (err) {
+          console.error("Failed to delete item", err);
         }
-      } catch (err) {
-        console.error("Failed to delete item", err);
       }
-    }
+    });
   };
 
   const filteredHistory = historyData.filter(item => 
@@ -108,8 +136,39 @@ const History = () => {
     return pages;
   };
 
-  const exportCSV = () => {
-    if (filteredHistory.length === 0) return;
+  // Get unique waste types and users for the dropdowns
+  const uniqueWasteTypes = useMemo(() => {
+    const types = new Set();
+    historyData.forEach(item => {
+      // Basic splitting if multiple items exist like "Plastic (x2), Glass"
+      const parts = item.type.split(',');
+      parts.forEach(p => {
+        const match = p.match(/([a-zA-Z]+)/);
+        if (match) types.add(match[1].trim());
+      });
+    });
+    return ['All', ...Array.from(types).sort()];
+  }, [historyData]);
+
+  const uniqueUsers = useMemo(() => {
+    const users = new Set();
+    historyData.forEach(item => {
+      if (item.username) users.add(item.username);
+    });
+    return ['All', ...Array.from(users).sort()];
+  }, [historyData]);
+
+  const generateCSV = (dataToExport, filename) => {
+    if (dataToExport.length === 0) {
+      setModalConfig({
+        isOpen: true,
+        type: 'alert',
+        title: 'No Data',
+        message: 'There is no data to export matching your current filters.',
+        confirmText: 'OK'
+      });
+      return;
+    }
     
     const headers = ['Waste Type', 'Confidence', 'Date', 'Time', 'Disposal Method'];
     if (user?.role === 'admin') {
@@ -119,7 +178,7 @@ const History = () => {
     const csvRows = [];
     csvRows.push(headers.join(','));
     
-    filteredHistory.forEach(row => {
+    dataToExport.forEach(row => {
       const values = [];
       if (user?.role === 'admin') {
         values.push(`"${row.username || ''}"`);
@@ -138,12 +197,54 @@ const History = () => {
     const a = document.createElement('a');
     a.setAttribute('hidden', '');
     a.setAttribute('href', url);
-    a.setAttribute('download', `waste_history_${new Date().toISOString().split('T')[0]}.csv`);
+    a.setAttribute('download', filename);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    
+    setShowExportModal(false);
   };
 
+  const exportFilteredCSV = () => {
+    const dataToExport = historyData.filter(item => {
+      // Date filter
+      if (exportFilters.startDate && item.date < exportFilters.startDate) return false;
+      if (exportFilters.endDate && item.date > exportFilters.endDate) return false;
+      
+      // Waste Type filter
+      if (exportFilters.wasteType !== 'All' && !item.type.toLowerCase().includes(exportFilters.wasteType.toLowerCase())) return false;
+      
+      // User filter
+      if (user?.role === 'admin' && exportFilters.user !== 'All' && item.username !== exportFilters.user) return false;
+
+      // Confidence filter
+      if (item.conf < exportFilters.minConfidence) return false;
+
+      return true;
+    });
+
+    generateCSV(dataToExport, `waste_history_filtered.csv`);
+  };
+
+  const exportAllCSV = () => {
+    generateCSV(historyData, `waste_history_all.csv`);
+  };
+
+  const renderDisposalMethod = (methodStr) => {
+    if (!methodStr) return null;
+    if (methodStr.includes(' | ')) {
+      return (
+        <div className="flex flex-wrap gap-2 mt-1">
+          {methodStr.split(' | ').map((item, idx) => (
+            <span key={idx} className="bg-gray-100 dark:bg-white/10 text-xs px-2.5 py-1 rounded-md border border-gray-200 dark:border-white/20 whitespace-nowrap text-gray-800 dark:text-gray-200 font-medium shadow-sm">
+              {item}
+            </span>
+          ))}
+        </div>
+      );
+    }
+    return <span className="text-gray-700 dark:text-gray-300">{methodStr}</span>;
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -160,9 +261,9 @@ const History = () => {
               Clear All History
             </Button>
           )}
-          <Button variant="secondary" className="px-4 py-2" onClick={exportCSV}>
-            <Download size={18} />
-            Export CSV
+          <Button variant="secondary" className="px-4 py-2" onClick={() => setShowExportModal(true)}>
+            <Filter size={18} />
+            Export Data
           </Button>
         </div>
       </div>
@@ -226,8 +327,8 @@ const History = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400">
                       {row.time}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                      {row.method}
+                    <td className="px-6 py-4 min-w-[250px] whitespace-normal text-gray-700 dark:text-gray-300">
+                      {renderDisposalMethod(row.method)}
                     </td>
                     {user?.role === 'admin' && (
                       <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -274,7 +375,7 @@ const History = () => {
                 )}
                 <div className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-white/5 p-3 rounded-lg border border-gray-100 dark:border-white/5">
                   <span className="font-semibold block text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">Disposal Method</span>
-                  {row.method}
+                  {renderDisposalMethod(row.method)}
                 </div>
                 {user?.role === 'admin' && (
                   <div className="mt-2 pt-3 border-t border-gray-100 dark:border-white/10 flex justify-end">
@@ -345,6 +446,149 @@ const History = () => {
           </div>
         )}
       </GlassCard>
+
+      {/* --- Export Modal --- */}
+      <AnimatePresence>
+        {showExportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowExportModal(false)}
+            />
+            
+            {/* Modal Content */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-xl bg-white dark:bg-[#0a1321] rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-white/10"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary-green/10 text-primary-green rounded-lg">
+                    <Download size={20} />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Export CSV</h2>
+                </div>
+                <button 
+                  onClick={() => setShowExportModal(false)}
+                  className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              {/* Body (Filters) */}
+              <div className="p-6 space-y-5">
+                
+                {/* Date Range */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    <Calendar size={16} /> Date Range
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="date" 
+                      className="flex-1 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-green"
+                      value={exportFilters.startDate}
+                      onChange={(e) => setExportFilters({...exportFilters, startDate: e.target.value})}
+                    />
+                    <span className="text-gray-400">to</span>
+                    <input 
+                      type="date" 
+                      className="flex-1 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-green"
+                      value={exportFilters.endDate}
+                      onChange={(e) => setExportFilters({...exportFilters, endDate: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {/* Waste Type Filter */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <Filter size={16} /> Waste Type
+                    </label>
+                    <select 
+                      className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-green"
+                      value={exportFilters.wasteType}
+                      onChange={(e) => setExportFilters({...exportFilters, wasteType: e.target.value})}
+                    >
+                      {uniqueWasteTypes.map(type => (
+                        <option key={type} value={type} className="dark:bg-[#0a1321]">{type}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* User Filter (Admin Only) */}
+                  {user?.role === 'admin' && (
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        <User size={16} /> User
+                      </label>
+                      <select 
+                        className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-green"
+                        value={exportFilters.user}
+                        onChange={(e) => setExportFilters({...exportFilters, user: e.target.value})}
+                      >
+                        {uniqueUsers.map(u => (
+                          <option key={u} value={u} className="dark:bg-[#0a1321]">{u}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Confidence Slider */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <Settings2 size={16} /> Minimum Confidence
+                    </label>
+                    <span className="text-sm font-bold text-primary-green">{exportFilters.minConfidence}%</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    value={exportFilters.minConfidence}
+                    onChange={(e) => setExportFilters({...exportFilters, minConfidence: parseInt(e.target.value)})}
+                    className="w-full h-2 bg-gray-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-primary-green"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>0%</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-6 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 flex flex-col sm:flex-row justify-end items-center gap-3">
+                <Button variant="secondary" onClick={exportAllCSV} className="w-full sm:w-auto gap-2 border-gray-300 dark:border-white/20 hover:border-gray-400">
+                  <Download size={16} /> Download All
+                </Button>
+                <Button variant="secondary" onClick={() => setShowExportModal(false)} className="w-full sm:w-auto">
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={exportFilteredCSV} className="w-full sm:w-auto gap-2">
+                  <Download size={16} /> Download Filtered
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <ActionModal 
+        {...modalConfig}
+        onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+      />
     </div>
   );
 };

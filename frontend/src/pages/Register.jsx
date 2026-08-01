@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Loader, AlertCircle, Eye, EyeOff, ChevronLeft, Recycle, User, Mail, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import ActionModal from '../components/ActionModal';
 import heroImage from '../assets/ai_waste_hero.png';
 
 const Register = () => {
@@ -15,6 +16,7 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [modalConfig, setModalConfig] = useState({ isOpen: false });
   const navigate = useNavigate();
 
   const handleRegister = async (e) => {
@@ -40,8 +42,13 @@ const Register = () => {
       const data = await response.json();
 
       if (response.ok) {
-        alert("Registration successful! A welcome email has been sent.");
-        navigate('/login');
+        setModalConfig({
+          isOpen: true,
+          type: 'alert',
+          title: 'Success',
+          message: 'Registration successful! A welcome email has been sent.',
+          onConfirm: () => navigate('/login')
+        });
       } else {
         setError(data.error || "Registration failed");
       }
@@ -222,8 +229,7 @@ const Register = () => {
 
       {/* Right Column: Hero Image */}
       <div className="hidden lg:block lg:w-1/2 h-full relative border-l border-gray-200 dark:border-white/5 bg-gray-100 dark:bg-[#081420]">
-        {/* Gradient Overlay just for bottom text contrast */}
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent z-10 pointer-events-none" />
+        {/* Gradient Overlay removed per request */}
         
         <motion.div 
           className="absolute inset-0 overflow-hidden"
@@ -238,16 +244,20 @@ const Register = () => {
         </motion.div>
 
         {/* Motivational Text Overlay */}
-        <div className="absolute bottom-12 left-0 right-0 z-20 text-center px-8">
-          <blockquote className="text-2xl font-semibold text-white drop-shadow-lg tracking-tight">
+        <div className="absolute bottom-12 left-12 right-12 z-20 text-center p-8 rounded-3xl bg-black/30 backdrop-blur-md border border-white/20 shadow-2xl">
+          <blockquote className="text-2xl font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] tracking-tight">
             "Join the movement towards a cleaner, smarter planet."
           </blockquote>
-          <p className="mt-4 text-sm text-gray-300 font-medium tracking-wide uppercase">
+          <p className="mt-4 text-sm text-white/90 font-bold tracking-wide uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
             — Smart Waste AI
           </p>
         </div>
       </div>
 
+      <ActionModal 
+        {...modalConfig}
+        onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+      />
     </div>
   );
 };

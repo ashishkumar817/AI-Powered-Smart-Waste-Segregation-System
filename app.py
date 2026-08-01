@@ -3,8 +3,11 @@ import os
 import base64
 import numpy as np
 import cv2
+import time
+import threading
+import queue
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from ultralytics import YOLO
 from flask_sqlalchemy import SQLAlchemy
@@ -16,8 +19,11 @@ from services.email_service import mail, send_email
 from datetime import datetime, timedelta
 from services.otp_service import generate_otp
 from flask_mail import Message
-
-
+from services.telegram_service import send_telegram_message
+from collections import Counter
+from werkzeug.utils import secure_filename
+from collections import Counter
+from flask import send_from_directory
 
 
 
@@ -34,6 +40,11 @@ jwt = JWTManager(app)
 bcrypt = Bcrypt(app)
 mail.init_app(app)
 
+UPLOAD_FOLDER = "uploads"
+OUTPUT_FOLDER = "outputs"
+
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # ----------------- Database Models -----------------
 class User(db.Model):
@@ -44,8 +55,10 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
 
     password_hash = db.Column(db.String(128), nullable=False)
-
     role = db.Column(db.String(20), default='user')
+    phone_number = db.Column(db.String(20), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime, nullable=True)
 
     history = db.relationship(
         'DetectionHistory',
@@ -209,6 +222,12 @@ def register():
             email=email
         )
 
+        send_telegram_message(
+            f"🎉 New User Registered!\n"
+            f"Username: {username}\n"
+            f"Email: {email}"
+        )
+
     except Exception as e:
         print("Email Error:", e)
 
@@ -224,6 +243,9 @@ def login():
 
     user = User.query.filter_by(username=username).first()
     if user and bcrypt.check_password_hash(user.password_hash, password):
+        user.last_login = datetime.utcnow()
+        db.session.commit()
+        
         identity_str = json.dumps({'id': user.id, 'username': user.username, 'role': user.role})
         access_token = create_access_token(identity=identity_str)
         return jsonify({
@@ -232,6 +254,86 @@ def login():
         }), 200
 
     return jsonify({"error": "Invalid username or password"}), 401
+
+@app.route('/api/profile', methods=['GET', 'PUT'])
+@jwt_required()
+def profile():
+    identity = get_jwt_identity()
+    if isinstance(identity, str):
+        current_user = json.loads(identity)
+    else:
+        current_user = identity
+
+    user = User.query.get(current_user['id'])
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    if request.method == 'GET':
+        stats = {}
+        if user.role == 'admin':
+            stats['total_users'] = User.query.count()
+            stats['total_predictions'] = DetectionHistory.query.count()
+            
+            # Active users (logged in within last 30 days)
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            stats['active_users'] = User.query.filter(User.last_login >= thirty_days_ago).count()
+            stats['total_images_processed'] = stats['total_predictions']
+        else:
+            user_history = DetectionHistory.query.filter_by(user_id=user.id).all()
+            stats['images_uploaded'] = len(user_history)
+            stats['total_predictions'] = len(user_history)
+            
+            if user_history:
+                # Sort by date/time
+                last_record = max(user_history, key=lambda x: f"{x.date} {x.time}")
+                stats['last_prediction'] = f"{last_record.date} {last_record.time}"
+                stats['avg_confidence'] = round(sum(h.confidence for h in user_history) / len(user_history), 2)
+            else:
+                stats['last_prediction'] = "N/A"
+                stats['avg_confidence'] = 0
+
+        return jsonify({
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "phone_number": user.phone_number,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "last_login": user.last_login.isoformat() if user.last_login else None,
+            "stats": stats
+        }), 200
+
+    if request.method == 'PUT':
+        data = request.json
+        new_username = data.get('username')
+        new_email = data.get('email')
+        new_password = data.get('password')
+        new_phone = data.get('phone_number')
+
+        if new_username and new_username != user.username:
+            if User.query.filter_by(username=new_username).first():
+                return jsonify({"error": "Username already exists"}), 400
+            user.username = new_username
+            
+        if new_email and new_email != user.email:
+            if User.query.filter_by(email=new_email).first():
+                return jsonify({"error": "Email already registered"}), 400
+            user.email = new_email
+            
+        if new_phone is not None:
+            user.phone_number = new_phone
+            
+        if new_password:
+            user.password_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
+            
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Profile updated successfully",
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "phone_number": user.phone_number
+        }), 200
 
 @app.route("/api/forgot-password", methods=["POST"])
 def forgot_password():
@@ -274,12 +376,12 @@ def forgot_password():
 
     all_otps = PasswordOTP.query.all()
 
-    for otp in all_otps:
+    for otp_item in all_otps:
         print(
-            otp.id,
-            otp.email,
-            otp.otp,
-            otp.verified
+            otp_item.id,
+            otp_item.email,
+            otp_item.otp,
+            otp_item.verified
         )
 
     print("==============================")
@@ -418,6 +520,15 @@ def contact():
         message=message
     )
 
+        send_telegram_message(
+            f"📩 New Contact Message!\n\n"
+            f"Name: {name}\n"
+            f"Email: {email}\n"
+            f"Phone: {phone}\n"
+            f"Subject: {subject}\n\n"
+            f"Message:\n{message}"
+        )
+
         return jsonify({
             "message": "Your message has been sent successfully."
         }), 200
@@ -456,13 +567,7 @@ def email_report():
             recipients=[user.email]
         )
 
-        msg.body = f"""
-Hello {user.username},
-
-Your Smart Waste AI detection report is attached.
-
-Thank you for using Smart Waste AI.
-"""
+        msg.html = render_template("report_email.html", username=user.username)
 
         msg.attach(
             "SmartWaste_Report.pdf",
@@ -684,7 +789,12 @@ def predict():
                 
                 summary_type = ", ".join([f"{cat} (x{count})" if count > 1 else cat for cat, count in type_counts.items()])
                 avg_conf = total_conf / len(predictions)
-                method = "Multiple recommendations - check live view" if len(predictions) > 1 else predictions[0]['disposal']
+                
+                unique_categories = list(type_counts.keys())
+                if len(unique_categories) > 1:
+                    method = " | ".join([f"{cat} → {DISPOSAL_RECOMMENDATIONS.get(cat, 'Unknown').split(' - ')[0].strip()}" for cat in unique_categories])
+                else:
+                    method = DISPOSAL_RECOMMENDATIONS.get(unique_categories[0], "Unknown")
                 
                 now = datetime.now()
                 new_history = DetectionHistory(
@@ -698,12 +808,13 @@ def predict():
                 )
                 db.session.add(new_history)
                 db.session.commit()
-            
+                
             response_data = {
                 "predictions": predictions,
                 "processed_image": f"data:image/jpeg;base64,{processed_image_b64}",
                 "time": f"{round(speed)}ms",
                 "saved_to_history": bool(current_user)
+                
             }
             
             return jsonify(response_data)
@@ -713,6 +824,215 @@ def predict():
             traceback.print_exc()
             return jsonify({"error": str(e)}), 500
         
+
+@app.route("/api/detect-video", methods=["POST"])
+@jwt_required(optional=True)
+def detect_video():
+    try:
+        if "video" not in request.files:
+            return jsonify({"error": "No video uploaded"}), 400
+
+        video = request.files["video"]
+        filename = secure_filename(video.filename)
+        
+        # Save the input video
+        input_path = os.path.join(UPLOAD_FOLDER, filename)
+        video.save(input_path)
+
+        # Ensure output filename is .mp4
+        base_filename = os.path.splitext(filename)[0]
+        out_filename = f"{base_filename}_out.mp4"
+        
+        video_out_dir = os.path.join(OUTPUT_FOLDER, "video_detection")
+        os.makedirs(video_out_dir, exist_ok=True)
+        output_path = os.path.join(video_out_dir, out_filename)
+
+        cap = cv2.VideoCapture(input_path)
+        if not cap.isOpened():
+            return jsonify({"error": "Failed to open uploaded video"}), 500
+
+        # Get original video properties
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+
+        # 1. Resize to max width 640
+        max_width = 640
+        if width > max_width:
+            scale = max_width / width
+            new_width = max_width
+            new_height = int(height * scale)
+        else:
+            new_width = width
+            new_height = height
+
+        # Setup VideoWriter using avc1 (H.264) via Microsoft Media Foundation (MSMF) to avoid openh264 dll issues
+        fourcc = cv2.VideoWriter_fourcc(*'avc1')
+        out = cv2.VideoWriter(output_path, cv2.CAP_MSMF, fourcc, fps, (new_width, new_height))
+
+        counter = Counter()
+
+        # 3. Queue for threaded writing
+        write_queue = queue.Queue(maxsize=128)
+        stop_event = threading.Event()
+
+        def writer_thread():
+            while not stop_event.is_set() or not write_queue.empty():
+                try:
+                    frame = write_queue.get(timeout=0.1)
+                    out.write(frame)
+                    write_queue.task_done()
+                except queue.Empty:
+                    continue
+
+        writer = threading.Thread(target=writer_thread)
+        writer.start()
+
+        frame_idx = 0
+        processed_count = 0
+        
+        total_inference_time = 0.0
+        start_time = time.time()
+        
+        unique_objects = {}  # track_id -> class_name
+        total_conf = 0.0
+        conf_count = 0
+
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                    
+                # Resize frame
+                if width > max_width:
+                    frame = cv2.resize(frame, (new_width, new_height))
+                    
+                # Process using tracker
+                inference_start = time.time()
+                results = model.track(source=frame, imgsz=640, verbose=False, persist=True)
+                inference_time = time.time() - inference_start
+                total_inference_time += inference_time
+                processed_count += 1
+                
+                if results and results[0].boxes is not None:
+                    boxes = results[0].boxes
+                    if boxes.id is not None:
+                        # Object tracking successful
+                        for i in range(len(boxes.id)):
+                            track_id = int(boxes.id[i])
+                            cls_id = int(boxes.cls[i])
+                            conf = float(boxes.conf[i])
+                            
+                            unique_objects[track_id] = model.names[cls_id]
+                            total_conf += conf
+                            conf_count += 1
+                    else:
+                        # Fallback (shouldn't happen with persist=True, but just in case)
+                        for i in range(len(boxes.cls)):
+                            cls_id = int(boxes.cls[i])
+                            conf = float(boxes.conf[i])
+                            # Use a fake ID based on total count to at least register something
+                            unique_objects[f"untracked_{conf_count}"] = model.names[cls_id]
+                            total_conf += conf
+                            conf_count += 1
+                
+                # Annotate frame natively via YOLO
+                annotated_frame = results[0].plot() if results else frame
+
+                write_queue.put(annotated_frame)
+                frame_idx += 1
+                
+        finally:
+            stop_event.set()
+            writer.join()
+            
+            cap.release()
+            out.release()
+            
+            if os.path.exists(input_path):
+                try:
+                    os.remove(input_path)
+                except:
+                    pass
+
+        total_processing_time = time.time() - start_time
+        avg_inference_time_ms = (total_inference_time / processed_count * 1000) if processed_count > 0 else 0
+        effective_fps = frame_idx / total_processing_time if total_processing_time > 0 else 0
+        
+        # Calculate unique summary
+        counter = Counter(unique_objects.values())
+        primary = counter.most_common(1)[0][0] if counter else None
+        avg_conf = (total_conf / conf_count) if conf_count > 0 else 0.0
+        video_duration = frame_idx / fps if fps > 0 else 0.0
+        
+        # Save to history if logged in
+        current_user = get_jwt_identity()
+        if current_user:
+            if isinstance(current_user, str):
+                current_user = json.loads(current_user)
+                
+            summary_type = ", ".join([f"{cat} (x{count})" if count > 1 else cat for cat, count in counter.items()])
+            
+            unique_categories = list(counter.keys())
+            if len(unique_categories) > 1:
+                method = " | ".join([f"{cat.title()} → {DISPOSAL_RECOMMENDATIONS.get(cat.title(), 'Unknown').split(' - ')[0].strip()}" for cat in unique_categories])
+            elif len(unique_categories) == 1:
+                method = DISPOSAL_RECOMMENDATIONS.get(unique_categories[0].title(), "Unknown")
+            else:
+                method = "No Waste Detected"
+                
+            if not summary_type:
+                summary_type = "No Waste Detected"
+                
+            # Truncate summary to avoid DB String(100) overflow error
+            if len(summary_type) > 100:
+                summary_type = summary_type[:97] + "..."
+                
+            now = datetime.now()
+            new_history = DetectionHistory(
+                user_id=current_user['id'],
+                waste_type=summary_type,
+                confidence=round(avg_conf * 100, 1),
+                date=now.strftime("%Y-%m-%d"),
+                time=now.strftime("%H:%M:%S"),
+                method=method,
+                inference_time=round(avg_inference_time_ms, 1)
+            )
+            db.session.add(new_history)
+            db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "summary": dict(counter),
+            "primary": primary,
+            "video": f"http://127.0.0.1:5000/outputs/video_detection/{out_filename}",
+            "stats": {
+                "total_frames": frame_idx,
+                "processed_frames": processed_count,
+                "avg_inference_time_ms": round(avg_inference_time_ms, 2),
+                "total_processing_time_sec": round(total_processing_time, 2),
+                "effective_fps": round(effective_fps, 2),
+                "avg_confidence": round(avg_conf, 2),
+                "video_duration_sec": round(video_duration, 2),
+                "unique_objects": len(unique_objects)
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/outputs/video_detection/<path:filename>")
+def serve_detected_video(filename):
+    return send_from_directory(
+        os.path.join(OUTPUT_FOLDER, "video_detection"),
+        filename,
+        conditional=True
+    )
+
 print("Database URI:", app.config["SQLALCHEMY_DATABASE_URI"])
 if __name__ == '__main__':
         app.run(host='0.0.0.0', port=5000, debug=True)
+
